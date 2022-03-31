@@ -1,0 +1,258 @@
+create dbmsmini;
+---------------------------------------------------------
+use dbmsmini;
+---------------------------------------------------------
+create table owner(owner_username varchar(30),owner_password varchar(30));
+---------------------------------------------------------
+insert into owner values ("admin","admin");
+---------------------------------------------------------
+create table restaurant(rest_id int(10) auto_increment,rest_name varchar(30) NOT NULL,rest_password varchar(30) NOT NULL,rest_contact varchar(10) NOT NULL,rest_location varchar(20) NOT NULL,primary key(rest_id));
+-----------------------------------------------------------
+ create table employee(emp_id int(10) auto_increment,rest_id int(10),emp_name varchar(30) NOT NULL,emp_password varchar(30) NOT NULL,emp_contact varchar(10) NOT NULL,emp_salary int(10) NOT NULL,emp_designation varchar(20),emp_hiredate timestamp default now(),primary key(emp_id),foreign key(rest_id) references restaurant(rest_id));
+------------------------------------------------------------
+create table menu(rest_id int(10) not null,item_id int(10) not null,item_name varchar(30) not null,item_amt int(10) not null,foreign key(rest_id) references restaurant(rest_id));
+
+------------------------------------------------------------
+create table user(user_id int(10) not null,user_name varchar(20) not null,user_email varchar(20) not null,user_contact varchar(20) not null,user_address varchar(50),primary key(user_id));
+-----------------------------------------------------------
+
+create table orders(rest_id int(10),user_id int(10) not null,order_id int(10) auto_increment,item_id int(10) not null,item_qty int(10) not null,order_type varchar(20) not null,order_status varchar(20) not null,primary key(order_id),foreign key(rest_id) references restaurant(rest_id),foreign key(user_id) references user(user_id),foreign key(item_id) references menu(item_id));
+-------------------------------------------------------------
+create table manager(manager_id int(10) auto_increment not null,rest_id int(10) not null,manager_name varchar(30) NOT NULL,manager_password varchar(30) NOT NULL,manager_contact varchar(10) NOT NULL,manager_salary int(10) NOT NULL,manager_hiredate timestamp default now(),primary key(manager_id),foreign key(rest_id) references restaurant(rest_id));
+-------------------------------------------------------------
+restaurant registration procedure---->
+delimiter $$
+create procedure resreg(in rname varchar(30),in rpass varchar(30),in rcontact varchar(30),in rlocation varchar(30))
+    -> begin
+    -> insert into restaurant (rest_name,rest_password,rest_contact,rest_location) values(rname,rpass,rcontact,rlocation);
+    -> end;
+    -> $$
+Query OK, 0 rows affected (0.27 sec)
+---------------------------------------------------------------------------
+employee reg procedure---->
+delimiter $$
+create procedure empreg(in rid int(10), in ename varchar(30),in epass varchar(30),in econtact varchar(30),in edesignation varchar(30),in esalary varchar(30))
+begin
+insert into employee (rest_id,emp_name,emp_password,emp_contact,emp_designation,emp_salary) values(rid,ename,epass,econtact,edesignation,esalary);
+end;
+$$
+delimiter ;
+---------------------------------------------------------------
+manager reg procedure----->
+delimiter $$
+create procedure resman(in rid int,in mname varchar(30),in mpass varchar(30),in mcontact varchar(30),in msalary varchar(30))
+begin
+insert into manager (rest_id,manager_name,manager_password,manager_contact,manager_salary) values(rid,mname,mpass,mcontact,msalary);
+end;
+$$
+delimiter ;
+-------------------------------------------------------------
+ALTER TABLE menu change item_amt item_cost int(10);
+----------------------
+Menu Add procedure--->
+delimiter $$
+create procedure menadd(in rid int(10),in iname varchar(30),in icost int(10))
+begin
+insert into menu(rest_id,item_name,item_cost) value(rid,iname,icost);
+end;
+$$
+delimiter ;
+
+-------------------------------------------------------------
+delimiter $$
+create procedure menrem(in rid int(10),in iid int(10))
+begin
+delete from menu where rest_id=rid and item_id=iid;
+end;
+$$
+delimiter ;
+-------------------------------------------------------------
+changes in orders table--->
+
+ alter table orders add column bill_status varchar(30) default "pending";
+
+ALTER TABLE orders DROP order_status;
+
+alter table orders add(order_status varchar(30) default "preparing");
+-------------------------------------------------------------
+delimiter $$
+create procedure ordpre(in rid int(10),in oid int(10))
+begin
+update orders set order_status = "prepared" where rest_id=rid and order_id=oid;
+end;
+$$
+delimiter ;
+-------------------------------------------------------------
+create table employee_history(emp_id int(10),rest_id int(10),emp_name varchar(30),emp_password varchar(30),emp_contact varchar(10),emp_salary int(10),emp_designation varchar(20));
+-------------------------------------------------------------
+delimiter $$
+create trigger employee_update_trigger
+before update on employee
+for each row
+begin
+insert into employee_history
+set emp_id=old.emp_id,
+emp_name=old.emp_name,
+rest_id=old.rest_id,
+emp_password=old.emp_password,
+emp_contact=old.emp_contact,
+emp_salary=old.emp_salary,
+emp_designation=old.emp_designation;
+end;
+$$
+
+delimiter ;
+-------------------------------------------------------------
+create table pre_employee(emp_id int(10),rest_id int(10),emp_name varchar(30),emp_password varchar(30),emp_contact varchar(10),emp_salary int(10),emp_designation varchar(20),emp_hiredate timestamp);
+-------------------------------------------------------------
+delimiter $$
+create trigger employee_delete_trigger
+before delete on employee
+for each row
+begin
+insert into pre_employee
+set emp_id=old.emp_id,
+emp_name=old.emp_name,
+rest_id=old.rest_id,
+emp_password=old.emp_password,
+emp_contact=old.emp_contact,
+emp_salary=old.emp_salary,
+emp_designation=old.emp_designation,
+emp_hiredate=old.emp_hiredate;
+end;
+$$
+
+delimiter ;
+-------------------------------------------------------------
+delimiter $$
+create trigger menu_del
+before delete on menu
+for each row
+begin
+insert into menu_history
+set item_id=old.item_id,
+item_name=old.item_name,
+rest_id=old.rest_id,
+item_cost=old.item_cost;
+end;
+$$
+
+delimiter ;
+----------------------------------------------------------------
+delimiter $$
+create trigger menu_up
+before update on menu
+for each row
+begin
+insert into menu_history
+set item_id=old.item_id,
+item_name=old.item_name,
+rest_id=old.rest_id,
+item_cost=old.item_cost;
+end;
+$$
+
+delimiter ;
+-------------------------------------------------------------
+create table restaurant_history(rest_id int(10),rest_name varchar(30),rest_password varchar(30),rest_contact varchar(10),rest_location varchar(20));
+-------------------------------------------------------------
+delimiter $$
+create trigger rest_del
+before delete on restaurant
+for each row
+begin
+insert into restaurant_history
+set rest_id=old.rest_id,
+rest_name=old.rest_name,
+rest_contact=old.rest_contact,
+rest_password=old.rest_password,
+rest_location=old.rest_location;
+end;
+$$
+
+delimiter ;
+-------------------------------------------------------------
+create table manager_history(manager_id int(10),rest_id int(10),manager_name varchar(30),manager_password varchar(30),manager_contact varchar(10),manager_salary int(10),manager_hiredate timestamp);
+-------------------------------------------------------------
+delimiter $$
+create trigger man_del
+before delete on manager
+for each row
+begin
+insert into manager_history
+set manager_id=old.manager_id,
+manager_name=old.manager_name,
+rest_id=old.rest_id,
+manager_password=old.manager_password,
+manager_contact=old.manager_contact,
+manager_salary=old.manager_salary,
+manager_hiredate=old.manager_hiredate;
+end;
+$$
+
+delimiter ;
+-------------------------------------------------------------
+place procedure---->
+delimiter $$
+create procedure plaord(in rid int(10),in cid int(10),in iid int(10),in iqty int(10),in otype varchar(30))
+begin
+insert into orders (rest_id,user_id,item_id,item_qty,order_type) values(rid,cid,iid,iqty,otype);
+end;
+$$
+delimiter ;
+-------------------------------------------------------------
+bill procedure ---->
+delimiter $$
+create procedure billpre(in rid int(10),in cid int(10),in otype varchar(30))
+begin
+select b.item_name,a.item_qty,a.item_qty*b.item_cost from orders as a,menu as b where a.item_id=b.item_id and a.order_status="prepared" and a.user_id=cid and a.rest_id=rid and a.order_type=otype; 
+end;
+$$
+delimiter ;
+-------------------------------------------------------------
+delimiter $$
+create procedure ordbil(in rid int(10),in cid int(10),in otype varchar(30))
+begin
+update orders set bill_status = "done" where rest_id=rid and user_id=cid and order_type=otype and order_status="prepared";
+end;
+$$
+delimiter ;
+-------------------------------------------------------------
+create table bill(bill_no int(10) auto_increment,rest_id int(10),user_id int(10),bill_amt int(10),order_type varchar(30),bill_date timestamp default now(),primary key(bill_no),foreign key(user_id) references user(user_id),foreign key(rest_id) references restaurant(rest_id));
+-------------------------------------------------------------
+delimiter $$
+create procedure bilgen(in rid int(10),in cid int(10),in bamt int(10),in otype varchar(30))
+begin
+insert into bill(rest_id,user_id,bill_amt,order_type) values (rid,cid,bamt,otype);
+end;
+$$
+delimiter ;
+-------------------------------------------------------------
+DELIMITER $$
+ 
+CREATE FUNCTION totalamt(
+    amt int(10)
+) 
+RETURNS float(10)
+DETERMINISTIC
+BEGIN
+    DECLARE Totalamt float;
+ 
+    RETURN (amt*1.18);
+END$$
+DELIMITER ;
+-------------------------------------------------------------
+select order_type,sum(bill_amt) from bill group by order_type;
+-------------------------------------------------------------
+select a.rest_id,sum(a.bill_amt),b.rest_name from bill as a,restaurant as b where a.rest_id=b.rest_id group by rest_id;
+-------------------------------------------------------------
+-------------------------------------------------------------
+-------------------------------------------------------------
+-------------------------------------------------------------
+-------------------------------------------------------------
+-------------------------------------------------------------
+-------------------------------------------------------------
+-------------------------------------------------------------
+-------------------------------------------------------------
+-------------------------------------------------------------
+-------------------------------------------------------------
